@@ -2,10 +2,12 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import { getDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errors.js";
+import { createBooksRouter } from "./routes/books.js";
 
-export function createApp() {
+export function createApp({ database } = {}) {
   const app = express();
 
   app.disable("x-powered-by");
@@ -30,6 +32,9 @@ export function createApp() {
       message: "BookNook API is running",
     });
   });
+
+  const activeDatabase = database ?? getDatabase();
+  app.use("/books", createBooksRouter(activeDatabase.collection("books")));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
