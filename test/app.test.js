@@ -7,6 +7,8 @@ import { env } from "../src/config/env.js";
 
 function createDatabaseStub(books = []) {
   const insertedBooks = [];
+  const updates = [];
+  const deletions = [];
   const collection = {
     find() {
       return {
@@ -29,13 +31,29 @@ function createDatabaseStub(books = []) {
       insertedBooks.push(book);
       return { insertedId: "created-book-id" };
     },
+    async updateOne(filter, update) {
+      updates.push({ filter, update });
+      return { matchedCount: books.length > 0 ? 1 : 0, modifiedCount: books.length > 0 ? 1 : 0 };
+    },
+    async deleteOne(filter) {
+      deletions.push(filter);
+      return { deletedCount: books.length > 0 ? 1 : 0 };
+    },
   };
 
-  return { collection: () => collection, insertedBooks };
+  return { collection: () => collection, deletions, insertedBooks, updates };
 }
 
 function createTestApp(books) {
   return createApp({ database: createDatabaseStub(books) });
+}
+
+function createToken(email = "reader@example.com") {
+  return jwt.sign({ email, name: "A Reader" }, env.JWT_SECRET, {
+    algorithm: "HS256",
+    subject: "user-123",
+    expiresIn: "5m",
+  });
 }
 
 test("GET / reports that the API is available", async () => {
@@ -90,11 +108,7 @@ test("POST /books requires authentication", async () => {
 test("POST /books validates and saves owner-controlled book data", async () => {
   const database = createDatabaseStub();
   const app = createApp({ database });
-  const token = jwt.sign(
-    { email: "READER@example.com", name: "A Reader" },
-    env.JWT_SECRET,
-    { algorithm: "HS256", subject: "user-123", expiresIn: "5m" },
-  );
+  const token = createToken("READER@example.com");
   const response = await request(app)
     .post("/books")
     .set("Authorization", `Bearer ${token}`)
@@ -118,4 +132,38 @@ test("POST /books validates and saves owner-controlled book data", async () => {
     name: "A Reader",
     email: "reader@example.com",
   });
+});
+
+test("PATCH /books/:id requires authentication", async () => {
+  const id = "507f1f77bcf86cd799439011";
+  await request(createTestApp([{}])).patch(`/books/${id}`).send({ title: "Updated" }).expect(401);
+});
+
+test("PATCH /books/:id updates only a book owned by the authenticated email", async () => {
+  const id = "507f1f77bcf86cd799439011";
+  const database = createDatabaseStub([{}]);
+  const response = await request(createApp({ database }))
+    .patch(`/books/${id}`)
+    .set("Authorization", `Bearer ${createToken()}`)
+    .send({ title: "  Updated Shelf  ", totalCopies: 8, addedBy: { email: "fake@example.com" } })
+    .expect(200);
+
+  assert.equal(response.body.message, "Book updated successfully");
+  assert.equal(database.updates.length, 1);
+  assert.equal(database.updates[0].filter["addedBy.email"], "reader@example.com");
+  assert.equal(database.updates[0].update[0].$set.title, "Updated Shelf");
+  assert.equal(database.updates[0].update[0].$set.totalCopies, 8);
+});
+
+test("DELETE /books/:id deletes only a book owned by the authenticated email", async () => {
+  const id = "507f1f77bcf86cd799439011";
+  const database = createDatabaseStub([{}]);
+  const response = await request(createApp({ database }))
+    .delete(`/books/${id}`)
+    .set("Authorization", `Bearer ${createToken()}`)
+    .expect(200);
+
+  assert.equal(response.body.message, "Book deleted successfully");
+  assert.equal(database.deletions.length, 1);
+  assert.equal(database.deletions[0]["addedBy.email"], "reader@example.com");
 });

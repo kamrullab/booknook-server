@@ -19,6 +19,11 @@ const createBookSchema = z.object({
   totalCopies: z.coerce.number().int().min(1).max(1000),
 });
 
+const updateBookSchema = createBookSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  "At least one book field is required",
+);
+
 function createHttpError(statusCode, message) {
   return Object.assign(new Error(message), { statusCode });
 }
@@ -89,6 +94,77 @@ export function createBooksRouter(booksCollection) {
         message: "Book added successfully",
         data: { ...book, _id: insertResult.insertedId },
       });
+    }),
+  );
+
+  router.patch(
+    "/:id",
+    authenticate,
+    asyncHandler(async (request, response) => {
+      if (!ObjectId.isValid(request.params.id)) {
+        throw createHttpError(400, "Invalid book ID");
+      }
+
+      const result = updateBookSchema.safeParse(request.body);
+
+      if (!result.success) {
+        throw createHttpError(400, "Invalid book data");
+      }
+
+      const bookId = new ObjectId(request.params.id);
+      const filter = { _id: bookId, "addedBy.email": request.user.email };
+      const updates = { ...result.data, updatedAt: new Date() };
+      let update;
+
+      if (result.data.totalCopies === undefined) {
+        update = { $set: updates };
+      } else {
+        const nextTotal = result.data.totalCopies;
+        delete updates.totalCopies;
+        filter.$expr = {
+          $gte: [{ $add: ["$availableCopies", { $subtract: [nextTotal, "$totalCopies"] }] }, 0],
+        };
+        update = [
+          {
+            $set: {
+              ...updates,
+              availableCopies: {
+                $add: ["$availableCopies", { $subtract: [nextTotal, "$totalCopies"] }],
+              },
+              totalCopies: nextTotal,
+            },
+          },
+        ];
+      }
+
+      const updateResult = await booksCollection.updateOne(filter, update);
+
+      if (updateResult.matchedCount === 0) {
+        throw createHttpError(404, "Book not found, not owned by you, or copy count is invalid");
+      }
+
+      response.json({ success: true, message: "Book updated successfully" });
+    }),
+  );
+
+  router.delete(
+    "/:id",
+    authenticate,
+    asyncHandler(async (request, response) => {
+      if (!ObjectId.isValid(request.params.id)) {
+        throw createHttpError(400, "Invalid book ID");
+      }
+
+      const deleteResult = await booksCollection.deleteOne({
+        _id: new ObjectId(request.params.id),
+        "addedBy.email": request.user.email,
+      });
+
+      if (deleteResult.deletedCount === 0) {
+        throw createHttpError(404, "Book not found or not owned by you");
+      }
+
+      response.json({ success: true, message: "Book deleted successfully" });
     }),
   );
 
