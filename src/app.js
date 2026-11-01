@@ -6,6 +6,7 @@ import { getDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errors.js";
 import { createBooksRouter } from "./routes/books.js";
+import { createBorrowsRouter } from "./routes/borrows.js";
 
 export function createApp({ database } = {}) {
   const app = express();
@@ -35,6 +36,13 @@ export function createApp({ database } = {}) {
 
   const activeDatabase = database ?? getDatabase();
   app.use("/books", createBooksRouter(activeDatabase.collection("books")));
+  app.use(
+    "/borrows",
+    createBorrowsRouter({
+      booksCollection: activeDatabase.collection("books"),
+      borrowsCollection: activeDatabase.collection("borrows"),
+    }),
+  );
 
   app.use(notFoundHandler);
   app.use(errorHandler);

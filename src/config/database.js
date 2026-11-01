@@ -13,6 +13,15 @@ export async function connectToDatabase() {
   await client.connect();
   database = client.db(env.MONGODB_DB_NAME);
   await database.command({ ping: 1 });
+  await Promise.all([
+    database.collection("books").createIndex({ addedAt: -1 }),
+    database.collection("books").createIndex({ "addedBy.email": 1, addedAt: -1 }),
+    database.collection("borrows").createIndex(
+      { bookId: 1, userEmail: 1 },
+      { unique: true },
+    ),
+    database.collection("borrows").createIndex({ userEmail: 1, borrowDate: -1 }),
+  ]);
   return database;
 }
 
