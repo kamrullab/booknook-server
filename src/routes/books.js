@@ -8,6 +8,7 @@ const booksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(100),
   category: z.enum(["Fiction", "Science", "History", "Kids", "Others"]).optional(),
   search: z.string().trim().min(1).max(100).optional(),
+  mine: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
 });
 
 const createBookSchema = z.object({
@@ -33,6 +34,13 @@ export function createBooksRouter(booksCollection, authentication = authenticate
 
   router.get(
     "/",
+    (request, response, next) => {
+      if (request.query.mine === "true") {
+        authentication(request, response, next);
+        return;
+      }
+      next();
+    },
     asyncHandler(async (request, response) => {
       const result = booksQuerySchema.safeParse(request.query);
 
@@ -40,8 +48,13 @@ export function createBooksRouter(booksCollection, authentication = authenticate
         throw createHttpError(400, "Invalid books query parameters");
       }
 
-      const { category, limit, search } = result.data;
+      const { category, limit, mine, search } = result.data;
       const filter = {};
+
+      if (mine) {
+        if (!request.user) throw createHttpError(401, "Authentication is required");
+        filter["addedBy.email"] = request.user.email;
+      }
 
       if (category) {
         filter.category = category;

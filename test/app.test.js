@@ -13,8 +13,10 @@ function createDatabaseStub(books = []) {
   const insertedBooks = [];
   const updates = [];
   const deletions = [];
+  const findFilters = [];
   const collection = {
-    find() {
+    find(filter) {
+      findFilters.push(filter);
       return {
         sort() {
           return this;
@@ -45,7 +47,7 @@ function createDatabaseStub(books = []) {
     },
   };
 
-  return { collection: () => collection, deletions, insertedBooks, updates };
+  return { collection: () => collection, deletions, findFilters, insertedBooks, updates };
 }
 
 function createTestApp(books) {
@@ -85,6 +87,19 @@ test("GET /books rejects unsafe limits", async () => {
 
   assert.equal(response.body.success, false);
   assert.equal(response.body.message, "Invalid books query parameters");
+});
+
+test("GET /books?mine=true requires authentication", async () => {
+  const response = await request(createTestApp()).get("/books?mine=true").expect(401);
+  assert.equal(response.body.message, "Authentication is required");
+});
+
+test("GET /books?mine=true filters by the authenticated owner", async () => {
+  const database = createDatabaseStub([]);
+  await request(createApp({ database, authentication: authenticateTestUser }))
+    .get("/books?mine=true")
+    .expect(200);
+  assert.equal(database.findFilters[0]["addedBy.email"], "reader@example.com");
 });
 
 test("GET /books/:id rejects malformed identifiers", async () => {
