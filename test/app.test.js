@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import jwt from "jsonwebtoken";
 import request from "supertest";
 import { createApp } from "../src/app.js";
-import { env } from "../src/config/env.js";
+
+function authenticateTestUser(request, response, next) {
+  void response;
+  request.user = { id: "user-123", email: "reader@example.com", name: "A Reader" };
+  next();
+}
 
 function createDatabaseStub(books = []) {
   const insertedBooks = [];
@@ -46,14 +50,6 @@ function createDatabaseStub(books = []) {
 
 function createTestApp(books) {
   return createApp({ database: createDatabaseStub(books) });
-}
-
-function createToken(email = "reader@example.com") {
-  return jwt.sign({ email, name: "A Reader" }, env.JWT_SECRET, {
-    algorithm: "HS256",
-    subject: "user-123",
-    expiresIn: "5m",
-  });
 }
 
 test("GET / reports that the API is available", async () => {
@@ -107,11 +103,9 @@ test("POST /books requires authentication", async () => {
 
 test("POST /books validates and saves owner-controlled book data", async () => {
   const database = createDatabaseStub();
-  const app = createApp({ database });
-  const token = createToken("READER@example.com");
+  const app = createApp({ database, authentication: authenticateTestUser });
   const response = await request(app)
     .post("/books")
-    .set("Authorization", `Bearer ${token}`)
     .send({
       title: "  The Quiet Shelf  ",
       author: "Mira Sen",
@@ -142,9 +136,8 @@ test("PATCH /books/:id requires authentication", async () => {
 test("PATCH /books/:id updates only a book owned by the authenticated email", async () => {
   const id = "507f1f77bcf86cd799439011";
   const database = createDatabaseStub([{}]);
-  const response = await request(createApp({ database }))
+  const response = await request(createApp({ database, authentication: authenticateTestUser }))
     .patch(`/books/${id}`)
-    .set("Authorization", `Bearer ${createToken()}`)
     .send({ title: "  Updated Shelf  ", totalCopies: 8, addedBy: { email: "fake@example.com" } })
     .expect(200);
 
@@ -158,9 +151,8 @@ test("PATCH /books/:id updates only a book owned by the authenticated email", as
 test("DELETE /books/:id deletes only a book owned by the authenticated email", async () => {
   const id = "507f1f77bcf86cd799439011";
   const database = createDatabaseStub([{}]);
-  const response = await request(createApp({ database }))
+  const response = await request(createApp({ database, authentication: authenticateTestUser }))
     .delete(`/books/${id}`)
-    .set("Authorization", `Bearer ${createToken()}`)
     .expect(200);
 
   assert.equal(response.body.message, "Book deleted successfully");

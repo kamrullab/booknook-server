@@ -1,16 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import request from "supertest";
 import { createApp } from "../src/app.js";
-import { env } from "../src/config/env.js";
 
-function token() {
-  return jwt.sign({ email: "reader@example.com", name: "Reader" }, env.JWT_SECRET, {
-    algorithm: "HS256",
-    expiresIn: "5m",
-  });
+function authenticateTestUser(request, response, next) {
+  void response;
+  request.user = { id: "user-123", email: "reader@example.com", name: "Reader" };
+  next();
 }
 
 function cursor(items) {
@@ -61,9 +58,8 @@ function databaseStub({ available = true, existingBorrow = null } = {}) {
 }
 
 test("POST /borrows atomically borrows an available book", async () => {
-  const response = await request(createApp({ database: databaseStub() }))
+  const response = await request(createApp({ database: databaseStub(), authentication: authenticateTestUser }))
     .post("/borrows")
-    .set("Authorization", `Bearer ${token()}`)
     .send({ bookId: "507f1f77bcf86cd799439011" })
     .expect(201);
 
@@ -76,9 +72,8 @@ test("POST /borrows atomically borrows an available book", async () => {
 });
 
 test("POST /borrows rejects duplicate active borrowing", async () => {
-  const response = await request(createApp({ database: databaseStub({ existingBorrow: {} }) }))
+  const response = await request(createApp({ database: databaseStub({ existingBorrow: {} }), authentication: authenticateTestUser }))
     .post("/borrows")
-    .set("Authorization", `Bearer ${token()}`)
     .send({ bookId: "507f1f77bcf86cd799439011" })
     .expect(409);
 
@@ -86,9 +81,8 @@ test("POST /borrows rejects duplicate active borrowing", async () => {
 });
 
 test("POST /borrows rejects unavailable books", async () => {
-  const response = await request(createApp({ database: databaseStub({ available: false }) }))
+  const response = await request(createApp({ database: databaseStub({ available: false }), authentication: authenticateTestUser }))
     .post("/borrows")
-    .set("Authorization", `Bearer ${token()}`)
     .send({ bookId: "507f1f77bcf86cd799439011" })
     .expect(409);
 
@@ -97,9 +91,8 @@ test("POST /borrows rejects unavailable books", async () => {
 
 test("GET /borrows returns only authenticated-user records", async () => {
   const record = { bookTitle: "Test Book", userEmail: "reader@example.com" };
-  const response = await request(createApp({ database: databaseStub({ existingBorrow: record }) }))
+  const response = await request(createApp({ database: databaseStub({ existingBorrow: record }), authentication: authenticateTestUser }))
     .get("/borrows")
-    .set("Authorization", `Bearer ${token()}`)
     .expect(200);
 
   assert.deepEqual(response.body.data, [record]);
@@ -111,9 +104,8 @@ test("DELETE /borrows/:id returns an owned borrowed book", async () => {
     bookId: new ObjectId("507f1f77bcf86cd799439011"),
     userEmail: "reader@example.com",
   };
-  const response = await request(createApp({ database: databaseStub({ existingBorrow: borrow }) }))
+  const response = await request(createApp({ database: databaseStub({ existingBorrow: borrow }), authentication: authenticateTestUser }))
     .delete("/borrows/507f191e810c19729de860ea")
-    .set("Authorization", `Bearer ${token()}`)
     .expect(200);
 
   assert.equal(response.body.message, "Book returned successfully");

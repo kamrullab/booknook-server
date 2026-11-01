@@ -1,13 +1,14 @@
-import jwt from "jsonwebtoken";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { env } from "../config/env.js";
+
+const jwks = createRemoteJWKSet(new URL(env.AUTH_JWKS_URL));
 
 function unauthorized(message) {
   return Object.assign(new Error(message), { statusCode: 401 });
 }
 
-export function authenticate(request, response, next) {
+export async function authenticate(request, response, next) {
   void response;
-
   const authorization = request.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
@@ -15,14 +16,15 @@ export function authenticate(request, response, next) {
     return;
   }
 
-  const token = authorization.slice("Bearer ".length).trim();
-
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET, {
-      algorithms: ["HS256"],
+    const token = authorization.slice("Bearer ".length).trim();
+    const { payload } = await jwtVerify(token, jwks, {
+      issuer: env.AUTH_ISSUER,
+      audience: env.AUTH_AUDIENCE,
+      algorithms: ["EdDSA", "ES256"],
     });
 
-    if (typeof payload !== "object" || typeof payload.email !== "string") {
+    if (typeof payload.email !== "string") {
       next(unauthorized("Invalid authentication token"));
       return;
     }

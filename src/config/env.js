@@ -7,7 +7,9 @@ const environmentSchema = z.object({
   MONGODB_URI: z.string().min(1).default("mongodb://127.0.0.1:27017"),
   MONGODB_DB_NAME: z.string().min(1).default("booknook"),
   CLIENT_URL: z.url().default("http://localhost:3000"),
-  JWT_SECRET: z.string().min(32).default("development-only-secret-change-me-now"),
+  AUTH_JWKS_URL: z.url().default("http://localhost:3000/api/auth/jwks"),
+  AUTH_ISSUER: z.url().default("http://localhost:3000"),
+  AUTH_AUDIENCE: z.url().default("http://localhost:3000"),
 });
 
 const parsedEnvironment = environmentSchema.safeParse(process.env);

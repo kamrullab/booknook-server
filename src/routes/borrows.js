@@ -12,9 +12,9 @@ function httpError(statusCode, message) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-export function createBorrowsRouter({ booksCollection, borrowsCollection }) {
+export function createBorrowsRouter({ booksCollection, borrowsCollection, authentication = authenticate }) {
   const router = Router();
-  router.use(authenticate);
+  router.use(authentication);
 
   router.post(
     "/",

@@ -14,7 +14,7 @@
     "dotenv": "latest",
     "express": "latest",
     "helmet": "latest",
-    "jsonwebtoken": "latest",
+    "jose": "^6.2.14",
     "mongodb": "latest",
     "morgan": "latest",
     "zod": "latest"

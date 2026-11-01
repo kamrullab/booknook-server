@@ -28,7 +28,7 @@ function createHttpError(statusCode, message) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-export function createBooksRouter(booksCollection) {
+export function createBooksRouter(booksCollection, authentication = authenticate) {
   const router = Router();
 
   router.get(
@@ -67,7 +67,7 @@ export function createBooksRouter(booksCollection) {
 
   router.post(
     "/",
-    authenticate,
+    authentication,
     asyncHandler(async (request, response) => {
       const result = createBookSchema.safeParse(request.body);
 
@@ -99,7 +99,7 @@ export function createBooksRouter(booksCollection) {
 
   router.patch(
     "/:id",
-    authenticate,
+    authentication,
     asyncHandler(async (request, response) => {
       if (!ObjectId.isValid(request.params.id)) {
         throw createHttpError(400, "Invalid book ID");
@@ -149,7 +149,7 @@ export function createBooksRouter(booksCollection) {
 
   router.delete(
     "/:id",
-    authenticate,
+    authentication,
     asyncHandler(async (request, response) => {
       if (!ObjectId.isValid(request.params.id)) {
         throw createHttpError(400, "Invalid book ID");

@@ -8,7 +8,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errors.js";
 import { createBooksRouter } from "./routes/books.js";
 import { createBorrowsRouter } from "./routes/borrows.js";
 
-export function createApp({ database } = {}) {
+export function createApp({ database, authentication } = {}) {
   const app = express();
 
   app.disable("x-powered-by");
@@ -35,12 +35,13 @@ export function createApp({ database } = {}) {
   });
 
   const activeDatabase = database ?? getDatabase();
-  app.use("/books", createBooksRouter(activeDatabase.collection("books")));
+  app.use("/books", createBooksRouter(activeDatabase.collection("books"), authentication));
   app.use(
     "/borrows",
     createBorrowsRouter({
       booksCollection: activeDatabase.collection("books"),
       borrowsCollection: activeDatabase.collection("borrows"),
+      authentication,
     }),
   );
 
