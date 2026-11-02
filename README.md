@@ -27,17 +27,15 @@ The API trusts identity only after token verification. Names, emails, and user I
 
 ## Technology stack
 
-| Area | Technology |
-| --- | --- |
-| Runtime | Node.js 22+ |
-| API | Express |
-| Database | MongoDB native driver, MongoDB Atlas |
-| Authentication | Better Auth JWT, JOSE, remote JWKS |
-| Validation | Zod |
-| Security | Helmet, restricted CORS |
-| Logging | Morgan |
-| Testing | Node Test Runner, Supertest |
-| Deployment | Render |
+- **Runtime:** Node.js 22+
+- **API:** Express
+- **Database:** MongoDB native driver and MongoDB Atlas
+- **Authentication:** Better Auth JWT, JOSE, and remote JWKS
+- **Validation:** Zod
+- **Security:** Helmet and restricted CORS
+- **Logging:** Morgan
+- **Testing:** Node Test Runner and Supertest
+- **Deployment:** Render
 
 ## API reference
 
@@ -50,37 +48,40 @@ Production: https://booknook-server-xlsi.onrender.com
 
 ### Health check
 
-| Method | Route | Access | Description |
-| --- | --- | --- | --- |
-| `GET` | `/` | Public | Confirms that the API service is running |
+**`GET /`** · Public
+
+Confirms that the API service is running.
 
 ### Books
 
-| Method | Route | Access | Description |
-| --- | --- | --- | --- |
-| `GET` | `/books` | Public | List books, newest first |
-| `GET` | `/books?mine=true` | Authenticated | List books owned by the current reader |
-| `GET` | `/books/:id` | Public API | Retrieve one book by MongoDB ObjectId |
-| `POST` | `/books` | Authenticated | Add a validated book using token identity |
-| `PATCH` | `/books/:id` | Owner only | Update book fields or total copy count |
-| `DELETE` | `/books/:id` | Owner only | Remove an owned book |
+- **`GET /books`** · Public
+  List books, newest first.
+- **`GET /books?mine=true`** · Authenticated
+  List books owned by the current reader.
+- **`GET /books/:id`** · Public API
+  Retrieve one book by MongoDB ObjectId.
+- **`POST /books`** · Authenticated
+  Add a validated book using the verified token identity.
+- **`PATCH /books/:id`** · Owner only
+  Update book fields or safely adjust the total copy count.
+- **`DELETE /books/:id`** · Owner only
+  Remove an owned book.
 
 Supported `GET /books` query parameters:
 
-| Parameter | Values | Purpose |
-| --- | --- | --- |
-| `limit` | `1`–`100` | Maximum returned records; default is `100` |
-| `category` | `Fiction`, `Science`, `History`, `Kids`, `Others` | Filter by category |
-| `search` | Non-empty text | Search book title or author |
-| `mine` | `true`, `false` | Return only the authenticated reader’s books |
+- **`limit`** — Set the maximum number of records from `1` to `100`.
+- **`category`** — Use `Fiction`, `Science`, `History`, `Kids`, or `Others`.
+- **`search`** — Search by non-empty book title or author text.
+- **`mine`** — Use `true` to return only the authenticated reader’s books.
 
 ### Borrows
 
-| Method | Route | Access | Description |
-| --- | --- | --- | --- |
-| `POST` | `/borrows` | Authenticated | Borrow one available copy |
-| `GET` | `/borrows` | Authenticated | List the reader’s active borrows |
-| `DELETE` | `/borrows/:id` | Owner only | Return a borrowed book and restore its copy |
+- **`POST /borrows`** · Authenticated
+  Borrow one available copy.
+- **`GET /borrows`** · Authenticated
+  List the current reader’s active borrows.
+- **`DELETE /borrows/:id`** · Owner only
+  Return a borrowed book and restore its copy.
 
 `GET /books?mine=true` is protected behavior on the existing books route, not an additional resource endpoint.
 
@@ -135,12 +136,10 @@ Verify [http://localhost:5000](http://localhost:5000) before starting the client
 
 ## Available commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start with Node watch mode |
-| `npm start` | Start the production server |
-| `npm run lint` | Check JavaScript with ESLint |
-| `npm test` | Run API and borrowing tests |
+- **`npm run dev`** — Start with Node watch mode
+- **`npm start`** — Start the production server
+- **`npm run lint`** — Check JavaScript with ESLint
+- **`npm test`** — Run API and borrowing tests
 
 Recommended verification:
 
